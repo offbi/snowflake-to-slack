@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import Any
 
 import click
 
@@ -13,8 +14,8 @@ logger = logging.getLogger("snowflake-to-slack")
 logger.setLevel(logging.INFO)
 
 
-def add_options(options):
-    def _add_options(func):
+def add_options(options):  # type: ignore
+    def _add_options(func):  # type: ignore
         for option in reversed(options):
             func = option(func)
         return func
@@ -111,7 +112,7 @@ other = [
 @add_options(snowflake)
 @add_options(slack)
 @add_options(other)
-def snowflake_to_slack(**kwargs):
+def snowflake_to_slack(**kwargs: Any) -> None:
     rsa_uri = kwargs.get("rsa_key_uri")
     rsa_pass = kwargs.get("private_key_pass")
     if rsa_uri and rsa_pass:
@@ -127,6 +128,12 @@ def snowflake_to_slack(**kwargs):
         logger.error(
             "You specified both password and rsa key for Snowflake authorization. "
             "Please use one or the other!"
+        )
+        exit(1)
+    if not (kwargs.get("password") or kwargs.get("private_key")):
+        logger.error(
+            "You have to provide `--password` or `--rsa-key-uri` and "
+            "`--private-key-pass` for Snowflake authorization."
         )
         exit(1)
     if not (kwargs.get("slack_token") or kwargs.get("dry_run")):

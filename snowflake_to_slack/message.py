@@ -3,12 +3,11 @@ import logging
 from contextlib import closing
 from datetime import datetime
 from datetime import timedelta
-from string import Template
+from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import Generator
 from typing import Set
-from pathlib import Path
 
 import jinja2
 from slack_sdk import WebClient
@@ -31,7 +30,7 @@ def _get_snowflake_messages(
     Yields:
         Generator[DictCursor, None, None]: Generator of Snowflake messages.
     """
-    sql_cmd = kwargs.pop("sql_cmd")
+    sql_cmd = kwargs.pop("sql")
     with snowflake_connect(**kwargs) as con:
         with closing(con.cursor(DictCursor)) as cur:
             cur.execute(sql_cmd)
@@ -71,36 +70,59 @@ def _get_jinja_env(**kwargs: Any) -> jinja2.Environment:
         jinja2.Environment: Jinja environment
     """
     template_path = kwargs.get("template_path")
-    if template_path and Path(template_path).is_dir:
-        env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(template_path)
-        )
+    if template_path and Path(template_path).is_dir():
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_path))
         return env
     else:
         logger.error(f"Template path {template_path} does not exists!")
         exit(1)
 
 
-def _prepare_messages(**kwargs: Any) -> Generator[Dict[str, str], None, None]:
-    """Prepare messages for Slack notification.
+def _render_template(
+    jinja_env: jinja2.Environment, template_name: str, params: Dict[str, Any]
+) -> str:
+    try:
+        template = jinja_env.get_template(template_name)
+        rendered = template.render(**params)
+        return rendered
+    except (jinja2.TemplateNotFound, jinja2.TemplateError):
+        raise
 
-    Args:
-        kwargs: key value arguments.
 
-    Yields:
-        Generator[Dict[str, str], None, None]: Generator of all prepared messages.
+def _send_messages(**kwargs: Any) -> int:
+    """Get messages from Snowflake and send them to Slack.
+
+    Returns:
+        int: Status code
     """
     date_valid = _get_date_valid(**kwargs)
     jinja_env = _get_jinja_env(**kwargs)
+    client = WebClient(token=kwargs.get("slack_token"))
+    status_code = 0
     for msg in _get_snowflake_messages(**kwargs):
-        prepared_message = {}
+        channel = kwargs.get("slack_channel") or msg.get("SLACK_CHANNEL", "")
         tags = _get_frequency_tags(msg)
         if kwargs.get("dry_run") or _met_conditions(date_valid=date_valid, tags=tags):
-            metrics = json.loads(msg.get("METRICS", "{}"))
-            message = Template(msg.get("MESSAGE", "")).safe_substitute(**metrics)
-            prepared_message["message"] = message
-            prepared_message["channel"] = msg.get("CHANNEL")
-            yield prepared_message
+            template_name = msg.get("MESSAGE_TEMPLATE", "")
+            params = json.loads(msg.get("MESSAGE_PARAMS", "{}"))
+            try:
+                rendered = _render_template(jinja_env, template_name, params)
+                client.chat_postMessage(channel=channel, blocks=rendered)
+            except (jinja2.TemplateNotFound, jinja2.TemplateError) as e:
+                logger.error(
+                    f"Message template: {template_name}\n"
+                    f"Message params: {params}\n"
+                    f"Error: {e}"
+                )
+                if kwargs.get("fail_fast"):
+                    raise
+                status_code = 1
+            except SlackApiError as e:
+                logger.error(f"Channel: {channel}\nMessage: {rendered}\nError: {e}")
+                if kwargs.get("fail_fast"):
+                    raise
+                status_code = 1
+    return status_code
 
 
 def _met_conditions(date_valid: datetime, tags: Set[str]) -> bool:
@@ -142,57 +164,11 @@ def _met_conditions(date_valid: datetime, tags: Set[str]) -> bool:
         return True
 
 
-def _notify_slack(
-    message_blocks: str, channel: str, slack_token: str, fail_fast: bool
-) -> int:
-    """Send slack notification.
-
-    Args:
-        message_blocks (str): message block.
-        channel (str): channel or person.
-        slack_token (str): slack token
-        fail_fast (bool): raise error if any error occures
-
-    Raises:
-        SlackApiError: messege was not set
-
-    Returns:
-        int: status code
-    """
-    client = WebClient(token=slack_token)
-
-    try:
-        client.chat_postMessage(channel=channel, blocks=message_blocks)
-        logger.debug(f"{channel}: {message_blocks}")
-        return 0
-    except SlackApiError as e:
-        logger.error(f"Channel: {channel}\nMessage: {message_blocks}\nError: {e}")
-        if fail_fast:
-            raise
-        return 1
-
-
 def send_messages(**kwargs: Any) -> int:
     """Send Messages from Snowflake into Slack.
 
     Args:
         kwargs: key value arguments.
     """
-    messages = _prepare_messages(**kwargs)
-    slack_token = kwargs.get("slack_token", "")
-    fail_fast = kwargs.get("fail_fast", False)
-    status_code = 0
-    for message in messages:
-        channel = kwargs.get("slack_channel") or message.get("channel")
-        if channel:
-            msg_status_code = _notify_slack(
-                slack_token=slack_token,
-                channel=channel,
-                message_blocks=message.get("message", ""),
-                fail_fast=fail_fast,
-            )
-        else:
-            logger.warn(f"Missing channel: {message}")
-            msg_status_code = 1
-        status_code |= msg_status_code
+    status_code = _send_messages(**kwargs)
     exit(status_code)

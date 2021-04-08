@@ -23,5 +23,11 @@ def pre_mutation(context):  # type: ignore
         context.skip = True
     if line.startswith("required="):
         context.skip = True
-    if line.startswith("@dataclass"):
+    if line.startswith("envvar"):
+        context.skip = True
+    if line.startswith("click"):
+        context.skip = True
+    if line.startswith("@click"):
+        context.skip = True
+    if line.startswith("show_default"):
         context.skip = True

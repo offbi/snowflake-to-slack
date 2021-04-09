@@ -141,3 +141,5 @@ manifest.json
 html
 .mutmut-cache
 .python-version
+.secrets
+.env

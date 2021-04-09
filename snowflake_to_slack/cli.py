@@ -75,6 +75,7 @@ slack = [
     click.option("--slack-token", envvar="SLACK_TOKEN", help="Slack Token"),
     click.option(
         "--slack-channel",
+        envvar="SLACK_CHANNEL",
         help="Slack Channel. This parameter overrides value from database.",
     ),
 ]
@@ -84,18 +85,21 @@ other = [
         "--fail-fast",
         is_flag=True,
         show_default=True,
+        envvar="FAIL_FAST",
         help="Raise error and stop execution if error shows during sending message.",
     ),
     click.option(
         "--dry-run",
         is_flag=True,
         show_default=True,
+        envvar="DRY_RUN",
         help="Just print message into stdout. Do not send message to Slack.",
     ),
     click.option(
         "--date-valid",
         default=datetime.now().strftime("%Y-%m-%d"),
         show_default=True,
+        envvar="DATE_VALID",
         help="Date valid. Default current date.",
     ),
     click.option("--sql", envvar="SQL", required=True, help="SQL command to run."),

@@ -6,6 +6,7 @@ from click.testing import CliRunner
 from slack_sdk.errors import SlackApiError
 
 from snowflake_to_slack.cli import snowflake_to_slack
+from snowflake_to_slack.message import MissingTemplate
 
 DAILY_DB_DATA = [
     {
@@ -31,11 +32,19 @@ MULTIPLE_DAILY_DB_DATA = [
     },
 ]
 
-MISSING_TEMPLATE = [
+INVALID_TEMPLATE = [
     {
         "FREQUENCY": "daily",
         "SLACK_CHANNEL": "test",
         "MESSAGE_TEMPLATE": "simple.jinja2",
+        "MESSAGE_PARAMS": '{"test": "simple"}',
+    }
+]
+
+MISSING_TEMPLATE = [
+    {
+        "FREQUENCY": "daily",
+        "SLACK_CHANNEL": "test",
         "MESSAGE_PARAMS": '{"test": "simple"}',
     }
 ]
@@ -128,6 +137,11 @@ TESTS = (
         1,
     ),
     (
+        INVALID_TEMPLATE,
+        REQUIRED_PARAMS + ["--password", "test", "--slack-token", "123"],
+        1,
+    ),
+    (
         MISSING_TEMPLATE,
         REQUIRED_PARAMS + ["--password", "test", "--slack-token", "123"],
         1,
@@ -154,6 +168,24 @@ def test_cli(snow, _, table_data, cli_params, exit_code):
 
 @mock.patch("slack_sdk.WebClient.chat_postMessage")
 @mock.patch("snowflake.connector.connect")
+def test_raise_invalid_template(snow, _):
+    runner = CliRunner()
+    mock_con = snow.return_value
+    mock_cur = mock_con.cursor.return_value
+    mock_cur.__iter__.return_value = iter(INVALID_TEMPLATE)
+    params = REQUIRED_PARAMS + [
+        "--password",
+        "test",
+        "--slack-token",
+        "123",
+        "--fail-fast",
+    ]
+    with pytest.raises(jinja2.TemplateNotFound):
+        runner.invoke(snowflake_to_slack, params, catch_exceptions=False)
+
+
+@mock.patch("slack_sdk.WebClient.chat_postMessage")
+@mock.patch("snowflake.connector.connect")
 def test_raise_missing_template(snow, _):
     runner = CliRunner()
     mock_con = snow.return_value
@@ -166,7 +198,7 @@ def test_raise_missing_template(snow, _):
         "123",
         "--fail-fast",
     ]
-    with pytest.raises(jinja2.TemplateNotFound):
+    with pytest.raises(MissingTemplate):
         runner.invoke(snowflake_to_slack, params, catch_exceptions=False)
 
 

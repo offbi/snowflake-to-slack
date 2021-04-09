@@ -1,0 +1,82 @@
+# action.yaml
+name: 'Snowflake to Slack'
+description: 'Send Slack messages :hot_pepper: spiced with data from Snowflake :snowflake:'
+branding: # Look at documentation for branding options/requirements. These are my favorites.
+  icon: 'message-circle'
+  color: 'blue'
+inputs:
+  user:
+    description: 'Snowflake Username.'
+    required: true
+  password:
+    description: 'Snowflake Password.'
+    required: false
+  rsa-key-uri:
+    description: 'URI of RSA key for authorization.'
+    required: false
+  private-key-pass:
+    description: 'RSA key password.'
+    required: false
+  account:
+    description: 'Snowflake Account.'
+    required: true
+  warehouse:
+    description: 'Snowflake Warehouse.'
+    required: true
+  database:
+    description: 'Snowflake Database.'
+    required: true
+  role:
+    description: 'Snowflake Role.'
+    required: true
+  slack-token:
+    description: 'Slack Token.'
+    required: true
+  slack-channel:
+    description: 'Slack Channel. This parameter overrides value from database'
+    required: false
+    default: ${{ null }}
+  fail-fast:
+    description: 'Raise error and stop execution if error shows during sending message.'
+    required: false
+    default: ${{ null }}
+  dry-run:
+    description: 'Just print message into stdout. Do not send message to Slack.'
+    required: false
+    default: ${{ null }}
+  date-valid:
+    description: 'Date valid for deciding if message should be executed. Default current date.'
+    required: false
+    default: ${{ null }}
+  sql:
+    description: 'SQL command to run.'
+    required: true
+  template-path:
+    description: 'Path with your Jinja templates.'
+    required: true
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    SNOWFLAKE_USER: ${{ inputs.user }}
+    SNOWFLAKE_PASS: ${{ inputs.password }}
+    SNOWFLAKE_RSA_KEY_URI: ${{ inputs.rsa-key-uri }}
+    SNOWFLAKE_PRIVATE_KEY_PASS: ${{ inputs.private-key-pass }}
+    SNOWFLAKE_ACCOUNT: ${{ inputs.account }}
+    SLACK_TOKEN: ${{ inputs.slack-token }}
+    ### Optional params
+    SLACK_CHANNEL: ${{ inputs.slack-channel }}
+    FAIL_FAST: ${{ inputs.fail-fast }}
+    DRY_RUN: ${{ inputs.dry-run }}
+    DATE_VALID: ${{ inputs.date-valid }}
+  args:
+    - '--warehouse'
+    - ${{ inputs.warehouse}}
+    - '--database'
+    - ${{ inputs.database}}
+    - '--role'
+    - ${{ inputs.role}}
+    - '--template-path'
+    - ${{ inputs.template-path}}
+    - '--sql'
+    - ${{ inputs.sql}}

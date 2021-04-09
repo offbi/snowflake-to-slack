@@ -19,6 +19,10 @@ from snowflake_to_slack.snowflake import snowflake_connect
 logger = logging.getLogger("snowflake-to-slack")
 
 
+class MissingTemplate(Exception):
+    pass
+
+
 def _get_snowflake_messages(
     **kwargs: Any,
 ) -> Generator[DictCursor, None, None]:
@@ -89,6 +93,16 @@ def _render_template(
         raise
 
 
+def _get_message_template(message: Dict[str, Any]) -> str:
+
+    template_name = message.get("MESSAGE_TEMPLATE")
+    if not template_name:
+        raise MissingTemplate(
+            "Missing column `MESSAGE_TEMPLATE` or this column is empty!"
+        )
+    return template_name
+
+
 def _send_messages(**kwargs: Any) -> int:
     """Get messages from Snowflake and send them to Slack.
 
@@ -103,7 +117,13 @@ def _send_messages(**kwargs: Any) -> int:
         channel = kwargs.get("slack_channel") or msg.get("SLACK_CHANNEL", "")
         tags = _get_frequency_tags(msg)
         if kwargs.get("dry_run") or _met_conditions(date_valid=date_valid, tags=tags):
-            template_name = msg.get("MESSAGE_TEMPLATE", "")
+            try:
+                template_name = _get_message_template(msg)
+            except MissingTemplate as e:
+                logger.error(e)
+                if kwargs.get("fail_fast"):
+                    raise
+                status_code = 1
             params = json.loads(msg.get("MESSAGE_PARAMS", "{}"))
             try:
                 rendered = _render_template(jinja_env, template_name, params)

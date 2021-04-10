@@ -6,46 +6,55 @@ from click.testing import CliRunner
 from slack_sdk.errors import SlackApiError
 
 from snowflake_to_slack.cli import snowflake_to_slack
-from snowflake_to_slack.message import MissingTemplate
+from snowflake_to_slack.message import MissingMessage
 
 DAILY_DB_DATA = [
     {
-        "FREQUENCY": "daily",
+        "SLACK_FREQUENCY": "daily",
         "SLACK_CHANNEL": "test",
-        "MESSAGE_TEMPLATE": "simple.j2",
-        "MESSAGE_PARAMS": '{"test": "simple"}',
+        "SLACK_MESSAGE_TEMPLATE": "simple.j2",
+        "TEST": "simple",
     }
 ]
 
 MULTIPLE_DAILY_DB_DATA = [
     {
-        "FREQUENCY": "daily",
+        "SLACK_FREQUENCY": "daily",
         "SLACK_CHANNEL": "test",
-        "MESSAGE_TEMPLATE": "simple.j2",
-        "MESSAGE_PARAMS": '{"test": "simple"}',
+        "SLACK_MESSAGE_TEMPLATE": "simple.j2",
+        "TEST": "simple",
     },
     {
-        "FREQUENCY": "never",
+        "SLACK_FREQUENCY": "never",
         "SLACK_CHANNEL": "test2",
-        "MESSAGE_TEMPLATE": "simple.j2",
-        "MESSAGE_PARAMS": '{"test": "simple"}',
+        "SLACK_MESSAGE_TEMPLATE": "simple.j2",
+        "TEST": "simple",
     },
 ]
 
 INVALID_TEMPLATE = [
     {
-        "FREQUENCY": "daily",
+        "SLACK_FREQUENCY": "daily",
         "SLACK_CHANNEL": "test",
-        "MESSAGE_TEMPLATE": "simple.jinja2",
-        "MESSAGE_PARAMS": '{"test": "simple"}',
+        "SLACK_MESSAGE_TEMPLATE": "simple.jinja2",
+        "TEST": "simple",
+    }
+]
+
+ONLY_TEXT = [
+    {
+        "SLACK_FREQUENCY": "daily",
+        "SLACK_CHANNEL": "test",
+        "SLACK_MESSAGE_TEXT": "Hi!",
+        "TEST": "simple",
     }
 ]
 
 MISSING_TEMPLATE = [
     {
-        "FREQUENCY": "daily",
+        "SLACK_FREQUENCY": "daily",
         "SLACK_CHANNEL": "test",
-        "MESSAGE_PARAMS": '{"test": "simple"}',
+        "TEST": "simple",
     }
 ]
 
@@ -53,8 +62,8 @@ MISSING_TEMPLATE = [
 NO_FREQUENCY_DB_DATA = [
     {
         "SLACK_CHANNEL": "test",
-        "MESSAGE_TEMPLATE": "simple.j2",
-        "MESSAGE_PARAMS": '{"test": "simple"}',
+        "SLACK_MESSAGE_TEMPLATE": "simple.j2",
+        "TEST": "simple",
     }
 ]
 
@@ -79,6 +88,11 @@ REQUIRED_PARAMS = BASIC_PARAMS + ["--template-path", "./tests/test_templates"]
 TESTS = (
     (
         DAILY_DB_DATA,
+        REQUIRED_PARAMS + ["--password", "test", "--slack-token", "123"],
+        0,
+    ),
+    (
+        ONLY_TEXT,
         REQUIRED_PARAMS + ["--password", "test", "--slack-token", "123"],
         0,
     ),
@@ -198,7 +212,7 @@ def test_raise_missing_template(snow, _):
         "123",
         "--fail-fast",
     ]
-    with pytest.raises(MissingTemplate):
+    with pytest.raises(MissingMessage):
         runner.invoke(snowflake_to_slack, params, catch_exceptions=False)
 
 

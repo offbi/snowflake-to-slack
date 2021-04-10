@@ -1,7 +1,5 @@
 FROM python:3.8-slim
 
-WORKDIR /work
-COPY . .
-RUN pip install .
+RUN pip install snowflake-to-slack==0.1.1
 
 ENTRYPOINT ["snowflake-to-slack"]

@@ -56,7 +56,7 @@ inputs:
     required: true
 runs:
   using: 'docker'
-  image: 'Dockerfile'
+  image: 'docker://offbi:pre-commit-dbt:0.1.1'
   env:
     SNOWFLAKE_USER: ${{ inputs.user }}
     SNOWFLAKE_PASS: ${{ inputs.password }}

@@ -66,7 +66,7 @@ def _get_date_valid(**kwargs: Any) -> datetime:
     return datetime.strptime(date_valid, "%Y-%m-%d")
 
 
-def _get_frequency_tags(msg: DictCursor) -> Set[str]:
+def _get_frequency_tags(frequency: str) -> Set[str]:
     """Get frequency tags.
 
     Args:
@@ -76,9 +76,7 @@ def _get_frequency_tags(msg: DictCursor) -> Set[str]:
         Set[str]: set of frequency tags.
     """
     tags = set()
-    frequency = msg.get("SLACK_FREQUENCY")
-    if frequency:
-        tags = {tag.strip().lower() for tag in frequency.split(",") if tag}
+    tags = {tag.strip().lower() for tag in frequency.split(",") if tag}
     return tags
 
 
@@ -139,12 +137,9 @@ def _met_conditions(date_: datetime, tags: Set[str]) -> bool:
         "always": True,
     }
     intersection_list = list(set(tags) & set(condition_list.keys()))
-    if intersection_list:
-        for tag in intersection_list:
-            results.append(condition_list.get(tag, True))
-        return any(results)
-    else:
-        return True
+    for tag in intersection_list:
+        results.append(condition_list.get(tag, True))
+    return any(results)
 
 
 def _send_message(
@@ -170,9 +165,12 @@ def _send_message(
     """
     status_code = 0
     channel = kwargs.get("slack_channel") or msg.get("SLACK_CHANNEL", "")
-    tags = _get_frequency_tags(msg)
-    msg_template = msg.get("SLACK_MESSAGE_TEMPLATE")
-    msg_text = msg.get("SLACK_MESSAGE_TEXT")
+    frequency = kwargs.get("slack_frequency") or msg.get("SLACK_FREQUENCY") or "always"
+    msg_template = kwargs.get("slack_message_template") or msg.get(
+        "SLACK_MESSAGE_TEMPLATE"
+    )
+    msg_text = kwargs.get("slack_message_text") or msg.get("SLACK_MESSAGE_TEXT")
+    tags = _get_frequency_tags(frequency)
     blocks = None
     if kwargs.get("dry_run") or _met_conditions(date_=date_, tags=tags):
         try:
@@ -187,7 +185,12 @@ def _send_message(
                     "Every row in Snowflake table has to have `SLACK_MESSAGE_TEMPLATE`"
                     " or/and `SLACK_MESSAGE_TEXT` columns!"
                 )
-            slack_client.chat_postMessage(channel=channel, blocks=blocks, text=msg_text)
+            if kwargs.get("dry_run"):
+                logger.info(f"Channel: {channel}\nBlocks: {blocks}\nText: {msg_text}")
+            else:
+                slack_client.chat_postMessage(
+                    channel=channel, blocks=blocks, text=msg_text
+                )
         except (
             jinja2.TemplateNotFound,
             jinja2.TemplateError,

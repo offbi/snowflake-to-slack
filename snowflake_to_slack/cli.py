@@ -72,11 +72,35 @@ snowflake = [
 ]
 
 slack = [
-    click.option("--slack-token", envvar="SLACK_TOKEN", help="Slack Token"),
+    click.option("--slack-token", envvar="SLACK_TOKEN", help="Slack Token."),
     click.option(
         "--slack-channel",
         envvar="SLACK_CHANNEL",
         help="Slack Channel. This parameter overrides value from database.",
+    ),
+    click.option(
+        "--slack-frequency",
+        envvar="SLACK_FREQUENCY",
+        help=(
+            "Frequency. Together with date-valid determines whether "
+            "the message is sent."
+        ),
+    ),
+    click.option(
+        "--slack-message-template",
+        envvar="SLACK_MESSAGE_TEMPLATE",
+        help=(
+            "Message template. It overrides `SLACK_MESSAGE_TEMPLATE` from Slack. "
+            "Used mainly for testing"
+        ),
+    ),
+    click.option(
+        "--slack-message-text",
+        envvar="SLACK_MESSAGE_TEXT",
+        help=(
+            "Message text. It overrides `SLACK_MESSAGE_TEXT` from Slack. "
+            "Used mainly for testing"
+        ),
     ),
 ]
 

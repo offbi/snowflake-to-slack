@@ -36,6 +36,18 @@ inputs:
     description: 'Slack Channel. This parameter overrides value from database'
     required: false
     default: ${{ null }}
+  slack-frequency:
+    description: 'Frequency. Together with date-valid determines whether the message is sent. This parameter overrides value from database'
+    required: false
+    default: ${{ null }}
+  slack-message-template:
+    description: 'Message template. It overrides `SLACK_MESSAGE_TEMPLATE` from Snowflake.'
+    required: false
+    default: ${{ null }}
+  slack-message-text:
+    description: 'Message text. It overrides `SLACK_MESSAGE_TEXT` from Snowflake.'
+    required: false
+    default: ${{ null }}
   fail-fast:
     description: 'Raise error and stop execution if error shows during sending message.'
     required: false
@@ -56,7 +68,7 @@ inputs:
     required: true
 runs:
   using: 'docker'
-  image: 'docker://offbi:pre-commit-dbt:0.1.1'
+  image: 'docker://offbi:pre-commit-dbt:1.0.0'
   env:
     SNOWFLAKE_USER: ${{ inputs.user }}
     SNOWFLAKE_PASS: ${{ inputs.password }}
@@ -69,6 +81,9 @@ runs:
     FAIL_FAST: ${{ inputs.fail-fast }}
     DRY_RUN: ${{ inputs.dry-run }}
     DATE_VALID: ${{ inputs.date-valid }}
+    SLACK_FREQUENCY: ${{ inputs.slack-frequency }}
+    SLACK_MESSAGE_TEMPLATE: ${{ inputs.slack-message-template }}
+    SLACK_MESSAGE_TEXT: ${{ inputs.slack-message-text }}
   args:
     - '--warehouse'
     - ${{ inputs.warehouse}}

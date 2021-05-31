@@ -40,17 +40,15 @@ Easily send Slack messages templated with data from Snowflake.
 4. Inside your Slack template, replace all dynamic values you want to replace with Snowflake data with `{{<COLUMN NAME>}}`. E.g.
 
 ```
-{
-	"blocks": [
-		{
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "Hello {{GREETINGS}}"
-			}
+[
+	{
+		"type": "section",
+		"text": {
+			"type": "mrkdwn",
+			"text": "Hello {{GREETINGS}}"
 		}
-	]
-}
+	}
+]
 ```
 
 Then if I will have SQL query in Snowflake like this:
@@ -128,6 +126,8 @@ You can send Slack messages with:
 - specify your workflow, e.g.:
 ```
 on:
+  # to allow manual run
+  workflow_dispatch:
   schedule:
     # * is a special character in YAML so you have to quote this string
     - cron:  '0 0 * * *'
@@ -152,9 +152,49 @@ jobs:
           sql: "<your Snowflake select statement>"
           template-path: /github/workspace/<name of template folder in your repo>
 ```
-**Beware before you run `snowflake-to-slack` you needt to run `actions/checkout` action. `template-path` hash to be specified ad `/github/workspace/<name of template folder>`**
+**Beware before you run `snowflake-to-slack` you need to run `actions/checkout` action. `template-path` hash to be specified ad `/github/workspace/<name of template folder>`**
 - it is adviced to use [Github Secrets](https://docs.github.com/en/actions/reference/encrypted-secrets) to specify passwords and slack-tokens.
 - push to Github :)
+- if you want to use rsa key instead of password (recommended) - fill RSA_KEY secret and use this workflow:
+
+```
+on:
+  workflow_dispatch:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 0 * * *'
+
+jobs:
+  snowflake-to-slack:
+    runs-on: ubuntu-latest
+    name: snowflake to slack
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2.3.3
+      - run: 'echo "$RSA_KEY" > rsa_key.p8'
+        shell: bash
+        env:
+          RSA_KEY: ${{secrets.RSA_KEY}}
+      - name: Slack message 1
+        uses: offbi/snowflake-to-slack@1.0.1
+        with:
+          user: ${{ secrets.USER }}
+          rsa-key-uri: /github/workspace/rsa_key.p8
+          private-key-pass: ${{ secrets.PRIVATE_KEY_PASS }}
+          account: "<your Snowflake account name>"
+          warehouse: "<your Snowflake warehouse name>"
+          database: "<your Snowflake database name>"
+           role: "<your Snowflake role name>"
+          slack-token: ${{ secrets.SLACK_TOKEN }}
+          sql: | 
+            SELECT
+              'test.j2' AS SLACK_MESSAGE_TEMPLATE,
+              'This is notification' AS SLACK_MESSAGE_TEXT,
+              '#random' as SLACK_CHANNEL,
+              -------
+              'guys!' as GREETINGS
+          template-path: /github/workspace/<name of template folder in your repo>
+```
 
 To learn more about Github actions see https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions.
 

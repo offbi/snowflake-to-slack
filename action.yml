@@ -68,7 +68,7 @@ inputs:
     required: true
 runs:
   using: 'docker'
-  image: 'docker://offbi:snowflake-to-slack:1.0.0'
+  image: 'docker://offbi/snowflake-to-slack:1.0.0'
   env:
     SNOWFLAKE_USER: ${{ inputs.user }}
     SNOWFLAKE_PASS: ${{ inputs.password }}
